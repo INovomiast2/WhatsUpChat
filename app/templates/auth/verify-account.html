@@ -1,0 +1,139 @@
+{% import 'base.html' as base %}
+{{ base.render() }}
+<style>
+    /* Oculta los botones de incremento y decremento en los navegadores basados en WebKit (como Chrome y Safari) */
+    input[type="number"]::-webkit-inner-spin-button,
+    input[type="number"]::-webkit-outer-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
+
+    /* Oculta los botones de incremento y decremento en Firefox */
+    input[type="number"] {
+        -moz-appearance: textfield;
+    }
+</style>
+<div class="w-full h-screen flex items-center justify-center dark:text-black text-white py-12 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-lg w-full space-y-8 p-10 bg-white rounded-xl shadow-md">
+        <div>
+            <h2 class="mt-6 text-center text-3xl font-extrabold">
+                AllyChat - Verification
+            </h2>
+        </div>
+        <form class="mt-8 space-y-6" id="verification-form">
+            <input type="hidden" name="remember" value="true">
+            <div class="rounded-md shadow-sm -space-y-px">
+                <div>
+                    <label for="code" class="sr-only">Verification Code</label>
+                    <div class="flex justify-center items-center">
+                        <input type="number" name="" id="single-digit" class="w-16 h-16 px-2 text-center select-none rounded-md m-2 appearance-none font-bold text-2xl" maxlength="1" minlength="1" min="0", max="9" pattern="[0-9]{1}">
+                        <input type="number" name="" id="single-digit" class="w-16 h-16 px-2 text-center select-none rounded-md m-2 appearance-none font-bold text-2xl" maxlength="1" minlength="1" min="0", max="9" pattern="[0-9]{1}">
+                        <input type="number" name="" id="single-digit" class="w-16 h-16 px-2 text-center select-none rounded-md m-2 appearance-none font-bold text-2xl" maxlength="1" minlength="1" min="0", max="9" pattern="[0-9]{1}">
+                        <span>-</span>
+                        <input type="number" name="" id="single-digit" class="w-16 h-16 px-2 text-center select-none rounded-md m-2 appearance-none font-bold text-2xl" maxlength="1" minlength="1" min="0", max="9" pattern="[0-9]{1}">
+                        <input type="number" name="" id="single-digit" class="w-16 h-16 px-2 text-center select-none rounded-md m-2 appearance-none font-bold text-2xl" maxlength="1" minlength="1" min="0", max="9" pattern="[0-9]{1}">
+                        <input type="number" name="" id="single-digit" class="w-16 h-16 px-2 text-center select-none rounded-md m-2 appearance-none font-bold text-2xl" maxlength="1" minlength="1" min="0", max="9" pattern="[0-9]{1}">
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex">
+                <button type="submit" class=" flex items-center group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                    <i class="fas fa-check-circle px-1 flex items-center"></i> Verify
+                </button>
+            </div>
+            <div class="flex items-center justify-between">
+                <div class="text-sm">
+                    <a href="/auth/login" class="font-medium text-indigo-600 hover:text-indigo-500">
+                        <i class="fas fa-arrow-left px-1"></i> Back to Login
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+const inputs = Array.from(document.querySelectorAll('#single-digit'));
+const form = document.querySelector('#verification-form');
+inputs.forEach((input, index) => {
+    input.addEventListener('input', () => {
+        if (input.value) {
+            input.classList.add('fade-in');
+            if (index < inputs.length - 1) {
+                inputs[index + 1].focus();
+            }
+        }
+    });
+});
+
+window.onload = () => {
+    inputs[0].focus();
+    // Fire a notification to the user
+    // With the verification code
+    Swal.fire({
+        icon: 'info',
+        title: 'Verification Code',
+        text: 'Please check your email for the verification code.',
+        showConfirmButton: false,
+        timer: 3500
+    });
+    setTimeout(() => {
+        Swal.fire({
+            icon: 'info',
+            title: 'Verification Code',
+            html: 'The verification code is: <strong>{{ code }}</strong>',
+            confirmButtonText: 'Got it!',
+        }).then(res => {
+            if (res.isConfirmed) {
+                // Copy the verification code to the clipboard
+                navigator.clipboard.writeText('{{ code }}').then(() => {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Verification Code Copied',
+                        text: 'The verification code has been copied to your clipboard.',
+                        showConfirmButton: false,
+                        timer: 2500
+                    });
+                });
+            }
+        });
+    }, 4000);
+};
+
+form.addEventListener('submit', (e) => {
+e.preventDefault();
+const code = inputs.map(input => input.value).join('');
+console.log(code);
+fetch('/api/accountVerification', {
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+        "code": code,
+    })
+}).then(res => res.json()).then(data => {
+    if (data.status === 'success') {
+        Swal.fire({
+            icon: 'success',
+            title: 'Account Verified',
+            text: 'Your account has been verified successfully.',
+            showConfirmButton: false,
+            timer: 2500
+        });
+        setTimeout(() => {
+            window.location.href = '/chats';
+        }, 2500);
+    } else {
+        console.log(data);
+        Swal.fire({
+            icon: 'error',
+            title: 'Invalid Code',
+            text: 'The verification code is invalid. Please try again.',
+            confirmButtonText: 'Try Again',
+        });
+    }
+});
+});
+</script>

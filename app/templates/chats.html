@@ -1,0 +1,415 @@
+{% import 'base.html' as base %}
+{{ base.render() }}
+<style>
+    #content {
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+        overflow: hidden;
+    }
+
+    header,
+    aside {
+        flex-shrink: 0;
+    }
+
+    main {
+        flex-grow: 1;
+        overflow-y: auto;
+    }
+
+    #main-content {
+        display: flex;
+        flex-grow: 1;
+        overflow-y: none;
+    }
+
+    .dropdown {
+        position: relative;
+        display: inline-block;
+    }
+
+    .dropdown-content {
+        display: none;
+        position: absolute;
+        background-color: #f9f9f9;
+        min-width: 160px;
+        right: 0;
+        box-shadow: 0px 8px 16px 0px rgba(0, 0, 0, 0.2);
+        padding: 12px 16px;
+        z-index: 1;
+    }
+
+    .dropdown-content .option {
+        color: black;
+        padding: 12px 16px;
+        text-decoration: none;
+        display: block;
+        width: 100%;
+        text-align: left;
+    }
+
+    .dropdown-content .option:hover {
+        background-color: #f1f1f1
+    }
+
+    .dropdown:hover .dropdown-content {
+        display: block;
+    }
+
+    input[name="searchbar"] {
+        outline: none;
+    }
+
+    input[name="searchbar"]:focus {
+        outline: none;
+    }
+</style>
+
+<!-- Chats Page -->
+<div class="w-full" id="content">
+    <header class="bg-gray-800">
+        <div class="flex justify-between items-center p-5">
+            <h1 class="text-2xl font-bold hidden sm:block">AllyChat</h1>
+            <div class="group w-16 hover:cursor-pointer sm:hidden" id="burguer-menu">
+                <i class="fa-solid fa-bars text-2xl"></i>
+            </div>
+            <div class="dropdown">
+                <!-- Profile Picture -->
+                <img onclick="toggleOptions()" src="{{ currentUser['profile_picture'] }}" alt="Profile Picture"
+                    class="w-10 h-10 rounded-full cursor-pointer">
+                <div id="options" class="dropdown-content">
+                    <button class="option">Profile</button>
+                    <button class="option" onclick="logout()">Logout</button>
+                </div>
+            </div>
+        </div>
+    </header>
+    <div id="main-content">
+        <aside class="w-[500px] bg-gray-400 h-screen select-none overflow-auto hidden sm:block">
+            <div class="flex justify-between items-center p-5">
+                <h1 class="text-2xl font-bold">Chats</h1>
+                <button class="bg-blue-500 text-white p-2 rounded-md" id="new-chat-btn">New Chat</button>
+            </div>
+            <div class="p-5">
+                <div class="flex items-center bg-gray-200 p-2 rounded-full shadow-sm outline-none">
+                    <i class="fas fa-search p-2"></i>
+                    <input type="text" name="searchbar" class="bg-gray-200 w-full text-black border-none focus:ring-0"
+                        id="searchbar" placeholder="Search for a chat...">
+                </div>
+            </div>
+            <div>
+                <!-- Chat Invitations -->
+                <div class="p-4">
+                    <h1 class="text-lg font-bold">Chat Invitations</h1>
+                    <div class="flex items-center hover:bg-gray-500 hover:cursor-pointer p-3">
+                        <img src="https://cdn-icons-png.flaticon.com/512/149/149071.png" alt="Profile Picture"
+                            class="w-10 h-10 rounded-full ml-3">
+                        <div class="ml-5">
+                            <h1 class="text-lg font-bold">
+                                John Doe
+                            </h1>
+                            <p class="text-sm">This is a chat invitation</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="p-8">
+                    {% for contact in currentUser['contacts'] %}
+                    <div>
+                        <div class="flex items-center hover:bg-gray-500 hover:cursor-pointer p-3"
+                            data-chatid="{{ contact['chatid'] }}" id="contact">
+                            <img src="{{ profile_picture(contact['username']) }}" alt="Profile Picture"
+                                class="w-10 h-10 rounded-full ml-3">
+                            <div class="ml-5">
+                                <h1 class="text-lg font-bold">
+                                    {{ contact['username'] }}
+                                </h1>
+                                {% if last_message %}
+                                <p class="text-sm">{{ last_message['sender'] }}: {{ (last_message['message'] | string) |
+                                    truncate(20, True, '...') }}</p>
+                                {% else %}
+                                <p class="text-sm">No messages yet</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <hr>
+                    </div>
+                    {% endfor %}
+                </div>
+        </aside>
+        <main id="main-content">
+            <div class="flex justify-center items-center h-[100vh] w-full" id="chat-content">
+                <div class="w-96" id="no-chat-selected">
+                    <h1 class="text-4xl font-bold text-center">Select a chat</h1>
+                </div>
+                <div class="flex flex-col justify-between w-full h-screen" id="chat-window" style="display: none;">
+                    <header id="chat-info" class="w-full bg-gray-700">
+                        <div class="flex justify-between items-center sm:p-5 p-5">
+                            <div class="flex items-center px-3 select-none group sm:px-0">
+                                <img src="{{ contact_pic }}" alt="Profile Picture"
+                                    class="w-12 h-12 rounded-full sm:ml-3">
+                                <span class="text-2xl font-bold px-3 group-hover:underline group-hover:cursor-pointer"
+                                    id="contact-info">{{ chat_data['username'] }}</span>
+                            </div>
+                        </div>
+                    </header>
+                    <div class="bg-gray-600 flex-grow overflow-y-auto" id="chat-window-messages">
+                        <!-- Display messages on chat -->
+                        {% for message in chat_data['messages'] %}
+                        {% set time = message['created_at'].split(' ')[1].split(':') %}
+                        {% set hour_minute = time[0] + ':' + time[1] %}
+                        {% if currentUser['username'] == message['sender'] %}
+                        <div class="flex w-full p-3 justify-end">
+                            <div class="flex flex-col bg-blue-600 text-white p-3 sm:w-52 md:w-1/4 rounded-md">
+                                <div>{{ message['message'] }}</div>
+                                <div class="text-xs text-gray-700 text-right mt-2">
+                                    {{ hour_minute }}
+                                </div>
+                            </div>
+                        </div>
+                        {% else %}
+                        <div class="flex w-full p-3 justify-start">
+                            <div class="flex flex-col bg-gray-300 text-black p-3 sm:w-52 md:w-1/4 rounded-md">
+                                {{ message['message'] }}
+                                <div class="text-xs text-gray-700 text-right mt-2">
+                                    {{ hour_minute }}
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                        {% endfor %}
+                    </div>
+                    <footer class="mt-auto">
+                        <div class="flex text-black" id="chat-message-send">
+                            <input type="text" class="w-full p-3 text-black" placeholder="Type a message..."
+                                id="message_input">
+                            <button id="send_message_btn"><i
+                                    class="fa-solid fa-paper-plane w-12 h-12 flex items-center justify-center text-white bg-blue-600 text-xl"></i></button>
+                        </div>
+                    </footer>
+                </div>
+            </div>
+        </main>
+    </div>
+</div>
+
+<script>
+    function toggleOptions() {
+        var options = document.getElementById('options');
+        if (options.style.display === "none") {
+            options.style.display = "block";
+        } else {
+            options.style.display = "none";
+        }
+    }
+
+    window.onload = () => {
+        const url = window.location.href;
+        const chatId = url.split('chats').pop();
+        const definitiveChatId = chatId.replace('/', '');
+        if (chatId) {
+            // Open the chat
+            document.getElementById('chat-window').style.display = 'block';
+            document.getElementById('chat-window').style.opacity = 0;
+            document.getElementById('no-chat-selected').style.display = 'none';
+            document.getElementById('chat-window').style.animation = 'fade-in 2s forwards';
+            // Now, let's make the chat selected the active chat
+            const chats = document.querySelectorAll('#contact');
+            chats.forEach(chat => {
+                if (chat.getAttribute('data-chatid') === definitiveChatId) {
+                    chat.style.backgroundColor = '#4B5563';
+                    chat.style.color = 'white';
+                }
+            });
+        } else {
+            // Fade in the page
+            document.getElementById('content').style.opacity = 0;
+            document.getElementById('content').style.animation = 'fade-in 2s';
+            document.getElementById('content').style.opacity = 1;
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        document.getElementById('chat-window-messages').style.height = 'calc(83.7% - ' + document.getElementById('chat-info').offsetHeight + 'px)';
+
+        if (window.innerWidth < 640) {
+            document.getElementById('chat-window-messages').style.height = 'calc(75.7% - ' + document.getElementById('chat-info').offsetHeight + 'px)';
+        }
+    });
+
+    function logout() {
+        window.location.href = '/auth/logout';
+    }
+
+    var chats = document.querySelectorAll('#contact');
+    chats.forEach(chat => {
+        chat.addEventListener('click', (e) => {
+            // If the chat is already selected, do nothing
+            // If the chat is not selected, remove the background color from the other chats
+            chats.forEach(chat => {
+                if (chat.getAttribute('data-chatid') == e.target.getAttribute('data-chatid')) {
+                    chat.style.backgroundColor = 'white';
+                    chat.style.color = 'black';
+                }
+            });
+
+            // If the aside is open, close it
+            const aside = document.querySelector('aside');
+            const chatWindow = document.getElementById('chat-window');
+            if (aside.style.display === 'block') {
+                aside.style.animation = 'translateToLeft 0.5s forwards';
+                setTimeout(() => {
+                    aside.style.display = 'none';
+                    chatWindow.style.display = 'block';
+                }, 450);
+            }
+            const chatId = chat.getAttribute('data-chatid');
+            window.location.href = `/chats/${chatId}`;
+        });
+    });
+
+    document.getElementById('new-chat-btn').addEventListener('click', () => {
+        Swal.fire({
+            'title': 'New Chat',
+            'input': 'text',
+            'inputLabel': 'Enter the email of the user you want to chat with',
+            'inputAttributes': {
+                'autocapitalize': 'off'
+            },
+            'showCancelButton': true,
+            'confirmButtonText': 'Send Invitation',
+            'showLoaderOnConfirm': true,
+            'inputValidator': (value) => {
+                if (!value) {
+                    return 'You need to write something!';
+                }
+            },
+            'inputPlaceholder': 'Username/Email',
+            'icon': 'info',
+            'theme': 'dark'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                // Just for testing purposes
+                Swal.fire({
+                    'title': 'Chat Invitation Sent',
+                    'text': 'The chat invitation has been sent',
+                    'icon': 'success',
+                    'theme': 'dark'
+                });
+            }
+        });
+    });
+
+    document.getElementById('burguer-menu').addEventListener('click', () => {
+        const aside = document.querySelector('aside');
+        const chatWindow = document.getElementById('chat-window');
+        const url = window.location.href;
+        const chatId = url.split('chats').pop().replace('/', '');
+
+        if (aside.style.display === 'none') {
+            aside.style.display = 'block';
+            aside.style.animation = 'translateToRight 0.5s forwards';
+            aside.style.width = '100%';
+            if (chatId) {
+                chatWindow.style.display = 'none';
+            }
+        } else {
+            aside.style.animation = 'translateToLeft 0.5s forwards';
+            setTimeout(() => {
+                aside.style.display = 'none';
+                if (chatId) {
+                    chatWindow.style.display = 'block';
+                }
+            }, 400);
+        }
+    });
+
+    // Check if the screen is small
+    window.addEventListener('resize', () => {
+        const aside = document.querySelector('aside');
+        const chatWindow = document.getElementById('chat-window');
+        const url = window.location.href;
+        const chatId = url.split('chats').pop().replace('/', '');
+
+        if (window.innerWidth < 640) {
+            aside.style.display = 'none';
+            if (chatId) {
+                chatWindow.style.display = 'block';
+
+            } else {
+                chatWindow.style.display = 'none';
+            }
+        } else if (window.innerWidth >= 640) {
+            if (aside.style.display === 'block') {
+                aside.style.display = 'block';
+                chatWindow.style.display = 'none';
+            } else if (chatId) {
+                aside.style.display = 'none';
+                chatWindow.style.display = 'block';
+            } else {
+                aside.style.display = 'block';
+                chatWindow.style.display = 'none';
+            }
+        }
+    });
+
+    // Obtén el campo de entrada y añade un controlador de eventos 'input'
+    document.querySelector('#searchbar').addEventListener('input', function (event) {
+        // Obtén el valor del campo de entrada
+        var searchTerm = event.target.value;
+
+        // Obtén todos los elementos de chat
+        var chats = document.querySelectorAll('#contact');
+
+        // Recorre cada chat
+        chats.forEach(function (chat) {
+            // Obtén el nombre del chat
+            var chatName = chat.textContent;
+
+            // Si el nombre del chat incluye el término de búsqueda, muestra el chat, de lo contrario, ocúltalo
+            if (chatName.includes(searchTerm)) {
+                chat.style.display = 'flex';
+            } else {
+                chat.style.display = 'none';
+            }
+        });
+    });
+
+    // Message Sending
+    document.getElementById('send_message_btn').addEventListener('click', () => {
+        const message = document.getElementById('message_input').value;
+        if (message) {
+            // Send the message
+            // Disable the input
+            document.getElementById('message_input').disabled = true;
+            // Disable the button
+            document.getElementById('send_message_btn').disabled = true;
+            const chatId = window.location.href.split('chats').pop().replace('/', '');
+            fetch(`/api/sendMessage/${chatId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    'message': message
+                })
+            }).then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        // Append the message to the chat window
+                        const chatWindow = document.getElementById('chat-window-messages');
+                        const messageDiv = document.createElement('div');
+                        messageDiv.classList.add('flex', 'w-full', 'p-3', 'justify-end');
+                        const messageContent = document.createElement('div');
+                        messageContent.classList.add('bg-blue-600', 'text-white', 'p-3', 'rounded-md');
+                        messageContent.textContent = message;
+                        messageDiv.appendChild(messageContent);
+                        chatWindow.appendChild(messageDiv);
+                        document.getElementById('message_input').value = '';
+                        document.getElementById('message_input').disabled = false;
+                        document.getElementById('send_message_btn').disabled = false;
+                    }
+                });
+        }
+    });
+</script>
